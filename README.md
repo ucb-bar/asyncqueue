@@ -12,3 +12,16 @@ Uses [Verilator](https://github.com/freechipsproject/chisel3#ubuntu-like-linux) 
 * `src/test/scala/gcd/GCDTester.scala` - GCD tester
 * `project/plugins.sbt` - enables warnings (optional)
 * `scalastyle-*` - helps IDEs/code linters check for best coding practices (optional)
+
+To run all tests in this design (recommended for test-driven development):
+
+```bash
+sbt test
+```
+
+To generate Verilog for a module without parameters, run `./build.sh <package> <module>`.
+The package for a module is specified by the line beginning with `package` - e.g. `package gcd`.
+
+```bash
+./build.sh gcd GCD
+```

@@ -1,5 +1,6 @@
 ### Project Specific stuff
 test_run_dir/*
+_temphelper.scala
 ### XilinxISE template
 # intermediate build files
 *.bgn
