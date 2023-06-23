@@ -2,9 +2,9 @@
 
 package freechips.asyncqueue
 
-import Chisel._
-import chisel3.util.HasBlackBoxResource
-import chisel3.core.IntParam
+
+
+import chisel3._
 
 /** This black-boxes an Async Reset
   *  (or Set)
@@ -32,48 +32,39 @@ import chisel3.core.IntParam
   *  
   */
 
-class AsyncResetReg(resetValue: Int = 0)
-  extends BlackBox(Map("RESET_VALUE" -> IntParam(resetValue))) with HasBlackBoxResource
-{
-  val io = new Bundle {
-    val d = Bool(INPUT)
-    val q = Bool(OUTPUT)
-    val en = Bool(INPUT)
+class AsyncResetReg(resetValue: Int = 0) extends RawModule {
+  val io = IO(new Bundle {
+    val d = Input(Bool())
+    val q = Output(Bool())
+    val en = Input(Bool())
 
-    val clk = Clock(INPUT)
-    val rst = Bool(INPUT)
+    val clk = Input(Clock())
+    val rst = Input(Reset())
+  })
+
+  val reg = withClockAndReset(io.clk, io.rst.asAsyncReset)(RegInit(resetValue.U(1.W)))
+  when (io.en) {
+    reg := io.d
   }
-
-  setResource("/vsrc/AsyncResetReg.v")
+  io.q := reg
 }
 
 class SimpleRegIO(val w: Int) extends Bundle{
-  val d = UInt(INPUT, width = w)
-  val q = UInt(OUTPUT, width = w)
-  val en = Bool(INPUT)
+  val d = Input(UInt(w.W))
+  val q = Output(UInt(w.W))
+  val en = Input(Bool())
 }
 
 class AsyncResetRegVec(val w: Int, val init: BigInt) extends Module {
-  val io = new SimpleRegIO(w)
-
-  val async_regs = List.tabulate(w) { idx =>
-    val on = if (init.testBit(idx)) 1 else 0
-    Module(new AsyncResetReg(on))
-  }
-
-  val q = for ((reg, idx) <- async_regs.zipWithIndex) yield {
-    reg.io.clk := clock
-    reg.io.rst := reset
-    reg.io.d   := io.d(idx)
-    reg.io.en  := io.en
-    reg.suggestName(s"reg_$idx")
-    reg.io.q
-  }
-
-  io.q := q.asUInt
-
   override def desiredName = s"AsyncResetRegVec_w${w}_i${init}"
 
+  val io = IO(new SimpleRegIO(w))
+
+  val reg = withReset(reset.asAsyncReset)(RegInit(init.U(w.W)))
+  when (io.en) {
+    reg := io.d
+  }
+  io.q := reg
 }
 
 object AsyncResetReg {
@@ -83,13 +74,13 @@ object AsyncResetReg {
     reg.io.d := d
     reg.io.clk := clk
     reg.io.rst := rst
-    reg.io.en  := Bool(true)
+    reg.io.en  := true.B
     name.foreach(reg.suggestName(_))
     reg.io.q
   }
 
-  def apply(d: Bool, clk: Clock, rst: Bool): Bool = apply(d, clk, rst, false, None)
-  def apply(d: Bool, clk: Clock, rst: Bool, name: String): Bool = apply(d, clk, rst, false, Some(name))
+  def apply(d: Bool, clk: Clock, rst: Bool): Bool = apply(d, clk, rst, init = false, None)
+  def apply(d: Bool, clk: Clock, rst: Bool, name: String): Bool = apply(d, clk, rst, init = false, Some(name))
 
   // Create Vectors of Registers
   def apply(updateData: UInt, resetData: BigInt, enable: Bool, name: Option[String] = None): UInt = {
@@ -104,13 +95,13 @@ object AsyncResetReg {
     resetData, enable, Some(name))
 
 
-  def apply(updateData: UInt, resetData: BigInt): UInt = apply(updateData, resetData, enable=Bool(true))
-  def apply(updateData: UInt, resetData: BigInt, name: String): UInt = apply(updateData, resetData, enable=Bool(true), Some(name))
+  def apply(updateData: UInt, resetData: BigInt): UInt = apply(updateData, resetData, enable = true.B)
+  def apply(updateData: UInt, resetData: BigInt, name: String): UInt = apply(updateData, resetData, enable = true.B, Some(name))
 
   def apply(updateData: UInt, enable: Bool): UInt = apply(updateData, resetData=BigInt(0), enable)
-  def apply(updateData: UInt, enable: Bool, name: String): UInt = apply(updateData, resetData=BigInt(0), enable, Some(name))
+  def apply(updateData: UInt, enable: Bool, name: String): UInt = apply(updateData, resetData = BigInt(0), enable, Some(name))
 
-  def apply(updateData: UInt): UInt = apply(updateData, resetData=BigInt(0), enable=Bool(true))
-  def apply(updateData: UInt, name:String): UInt = apply(updateData, resetData=BigInt(0), enable=Bool(true), Some(name))
+  def apply(updateData: UInt): UInt = apply(updateData, resetData = BigInt(0), enable = true.B)
+  def apply(updateData: UInt, name:String): UInt = apply(updateData, resetData = BigInt(0), enable = true.B, Some(name))
 }
 
